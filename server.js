@@ -1,14 +1,14 @@
-const { MongoClient } = require("mongodb");
-const express = require("express");
+const { MongoClient } = require('mongodb');
+const express = require('express');
 const app = express();
-const cors = require("cors");
-require("dotenv").config();
-const ObjectId = require("mongodb").ObjectId;
-const stripe = require("stripe")(process.env.STRIPE_SECRET);
-const fileUpload = require("express-fileupload");
+const cors = require('cors');
+require('dotenv').config();
+const ObjectId = require('mongodb').ObjectId;
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
+const fileUpload = require('express-fileupload');
 const port = process.env.PORT || 7000;
 // jwt token auth
-const admin = require("firebase-admin");
+const admin = require('firebase-admin');
 // const serviceAccount = require("./doctorsPortalFirebaseAdminsdk.json");
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
@@ -27,8 +27,8 @@ const client = new MongoClient(uri, {
 });
 
 async function verifyToken(req, res, next) {
-  if (req.headers?.authorization?.startsWith("Bearer ")) {
-    const totken = req.headers.authorization.split(" ")[1];
+  if (req.headers?.authorization?.startsWith('Bearer ')) {
+    const totken = req.headers.authorization.split(' ')[1];
     try {
       const decodedUser = await admin.auth().verifyIdToken(token);
       req.decodedEmail = decodedEmail;
@@ -40,14 +40,14 @@ async function verifyToken(req, res, next) {
 async function run() {
   try {
     await client.connect();
-    console.log("doctors portal db connected");
-    const database = client.db("doctors_portal");
-    const appointmentsCollection = database.collection("appointments");
-    const usersCollection = database.collection("users");
-    const doctorsCollection = database.collection("doctors");
+    console.log('doctors portal db connected');
+    const database = client.db('doctors_portal');
+    const appointmentsCollection = database.collection('appointments');
+    const usersCollection = database.collection('users');
+    const doctorsCollection = database.collection('doctors');
 
     // get appointments from server and show to client
-    app.get("/appointments", async (req, res) => {
+    app.get('/appointments', async (req, res) => {
       const email = req.query.email;
       const date = new Date(req.query.date).toLocaleDateString();
       const query = { email: email, date: date };
@@ -57,14 +57,14 @@ async function run() {
     });
 
     // get appointmet by id
-    app.get("/appointments/:id", async (req, res) => {
+    app.get('/appointments/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await appointmentsCollection.findOne(query);
       res.json(result);
     });
     // post appoints from client sidde to server
-    app.post("/appointments", async (req, res) => {
+    app.post('/appointments', async (req, res) => {
       const appointment = req.body;
 
       const result = await appointmentsCollection.insertOne(appointment);
@@ -74,7 +74,7 @@ async function run() {
     });
 
     // update appointment pay info
-    app.put("/appointments/:id", async (req, res) => {
+    app.put('/appointments/:id', async (req, res) => {
       const id = req.params.id;
       const payment = req.body;
       console.log(id, payment);
@@ -88,20 +88,20 @@ async function run() {
       res.json(result);
     });
 
-    app.get("/doctors", async (req, res) => {
+    app.get('/doctors', async (req, res) => {
       const cursor = doctorsCollection.find({});
       const doctors = await cursor.toArray();
       res.json(doctors);
     });
 
     // doctors collection with image
-    app.post("/doctors", async (req, res) => {
+    app.post('/doctors', async (req, res) => {
       const name = req.body.name;
       const email = req.body.email;
       const pic = req.files.image;
       const picData = pic.data;
-      const encodedPic = picData.toString("base64");
-      const imageBuffer = Buffer.from(encodedPic, "base64");
+      const encodedPic = picData.toString('base64');
+      const imageBuffer = Buffer.from(encodedPic, 'base64');
       const doctor = {
         name,
         email,
@@ -109,24 +109,24 @@ async function run() {
       };
       const result = await doctorsCollection.insertOne(doctor);
 
-      console.log("body", req.body);
-      console.log("files", req.files);
+      console.log('body', req.body);
+      console.log('files', req.files);
       res.json(result);
     });
 
     // check user is admin or not
-    app.get("/users/:email", async (req, res) => {
+    app.get('/users/:email', async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       let isAdmin = false;
-      if (user?.role === "admin") {
+      if (user?.role === 'admin') {
         isAdmin = true;
       }
       res.json({ admin: isAdmin });
     });
     // post users
-    app.post("/users", async (req, res) => {
+    app.post('/users', async (req, res) => {
       const user = req.body;
 
       const result = await usersCollection.insertOne(user);
@@ -134,7 +134,7 @@ async function run() {
       res.json(result);
       // some
     });
-    app.put("/users", async (req, res) => {
+    app.put('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
       const options = { upsert: true };
@@ -143,7 +143,7 @@ async function run() {
       res.json(result);
     });
     // make exist email as admin
-    app.put("/users/admin", verifyToken, async (req, res) => {
+    app.put('/users/admin', verifyToken, async (req, res) => {
       const user = req.body;
 
       const requester = req.decodedEmail;
@@ -151,25 +151,25 @@ async function run() {
         const requesterAccount = await usersCollection.findOne({
           email: requester,
         });
-        if (requesterAccount.role === "admin") {
+        if (requesterAccount.role === 'admin') {
           const filter = { email: user.email };
-          const updateDoc = { $set: { role: "admin" } };
+          const updateDoc = { $set: { role: 'admin' } };
           const result = await usersCollection.updateOne(filter, updateDoc);
           res.json(result);
         }
       } else {
-        res.status(403).json({ message: "you do not have access now" });
+        res.status(403).json({ message: 'you do not have access now' });
       }
     });
     // payment
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post('/create-payment-intent', async (req, res) => {
       const paymentInfo = req.body;
       console.log(paymentInfo);
       const amount = paymentInfo.price * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
-        currency: "usd",
-        payment_method_types: ["card"],
+        currency: 'usd',
+        payment_method_types: ['card'],
       });
       res.json({ clientSecret: paymentIntent.client_secret });
     });
@@ -179,10 +179,15 @@ async function run() {
 }
 run().catch(console.dir());
 
-app.get("/", (req, res) => {
-  res.send("Hello Doctors Portal!");
+app.get('/', (req, res) => {
+  res.send('Hello Doctors Portal!');
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
+  console.log(
+    `Example app listening at https://doctors-portal-server-six-beta.vercel.app/:${port}`
+  );
 });
+// app.listen(port, () => {
+//   console.log(`Example app listening at http://localhost:${port}`);
+// });
